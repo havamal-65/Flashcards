@@ -260,6 +260,92 @@
             transform: rotate(180deg);
         }
 
+        /* Save/Resume buttons */
+        .save-btn {
+            background: linear-gradient(135deg, #11998e 0%, #38ef7d 100%);
+            color: white;
+            border: none;
+            padding: 10px 24px;
+            font-size: 0.9rem;
+            font-weight: 500;
+            border-radius: 10px;
+            cursor: pointer;
+            margin-top: 20px;
+            margin-left: 10px;
+            transition: all 0.2s ease;
+        }
+
+        .save-btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 6px 20px rgba(17, 153, 142, 0.4);
+        }
+
+        .resume-section {
+            margin-top: 20px;
+            padding-top: 20px;
+            border-top: 2px solid #e0e0e0;
+        }
+
+        .resume-section h3 {
+            color: #333;
+            font-size: 1rem;
+            margin-bottom: 12px;
+        }
+
+        .resume-info {
+            color: #666;
+            font-size: 0.85rem;
+            margin-bottom: 12px;
+        }
+
+        .resume-btn {
+            background: linear-gradient(135deg, #11998e 0%, #38ef7d 100%);
+            color: white;
+            border: none;
+            padding: 12px 28px;
+            font-size: 0.95rem;
+            font-weight: 600;
+            border-radius: 12px;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            margin-right: 10px;
+        }
+
+        .resume-btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 6px 20px rgba(17, 153, 142, 0.4);
+        }
+
+        .clear-btn {
+            background: transparent;
+            color: #999;
+            border: 1px solid #ddd;
+            padding: 12px 20px;
+            font-size: 0.85rem;
+            border-radius: 12px;
+            cursor: pointer;
+            transition: all 0.2s ease;
+        }
+
+        .clear-btn:hover {
+            background: #fee;
+            color: #c00;
+            border-color: #fcc;
+        }
+
+        .save-indicator {
+            display: inline-block;
+            color: #38ef7d;
+            font-size: 0.85rem;
+            margin-left: 10px;
+            opacity: 0;
+            transition: opacity 0.3s ease;
+        }
+
+        .save-indicator.show {
+            opacity: 1;
+        }
+
         /* Responsive */
         @media (max-width: 600px) {
             .card-container {
@@ -291,6 +377,14 @@ Photosynthesis : The process by which plants convert sunlight into energy
 Mitochondria : The powerhouse of the cell
 DNA : Deoxyribonucleic acid, carries genetic information"></textarea>
             <button class="btn" onclick="createCards()">Create Flashcards</button>
+
+            <!-- Resume Section (shown when saved deck exists) -->
+            <div class="resume-section" id="resumeSection" style="display: none;">
+                <h3>Saved Deck Found</h3>
+                <p class="resume-info" id="resumeInfo">You have a saved deck. Pick up where you left off!</p>
+                <button class="resume-btn" onclick="resumeDeck()">Resume Deck</button>
+                <button class="clear-btn" onclick="clearSavedDeck()">Clear Saved</button>
+            </div>
         </div>
 
         <!-- Flashcard Section -->
@@ -322,6 +416,8 @@ DNA : Deoxyribonucleic acid, carries genetic information"></textarea>
 
             <center>
                 <button class="back-btn" onclick="goBack()">← Back to Edit</button>
+                <button class="save-btn" onclick="saveDeck()">Save Progress</button>
+                <span class="save-indicator" id="saveIndicator">✓ Saved!</span>
             </center>
         </div>
     </div>
@@ -330,6 +426,9 @@ DNA : Deoxyribonucleic acid, carries genetic information"></textarea>
         let cards = [];
         let currentIndex = 0;
         let isFlipped = false;
+        let originalInput = '';
+
+        const STORAGE_KEY = 'flashcards_saved_deck';
 
         function createCards() {
             const input = document.getElementById('cardInput').value.trim();
@@ -357,6 +456,7 @@ DNA : Deoxyribonucleic acid, carries genetic information"></textarea>
                 return;
             }
 
+            originalInput = input;
             currentIndex = 0;
             isFlipped = false;
             showFlashcardSection();
@@ -439,6 +539,101 @@ DNA : Deoxyribonucleic acid, carries genetic information"></textarea>
                     break;
             }
         });
+
+        // Save/Resume Functions
+        function saveDeck() {
+            const saveData = {
+                cards: cards,
+                currentIndex: currentIndex,
+                originalInput: originalInput,
+                savedAt: new Date().toISOString()
+            };
+
+            try {
+                localStorage.setItem(STORAGE_KEY, JSON.stringify(saveData));
+                showSaveIndicator();
+            } catch (e) {
+                alert('Unable to save deck. Your browser may not support local storage.');
+            }
+        }
+
+        function showSaveIndicator() {
+            const indicator = document.getElementById('saveIndicator');
+            indicator.classList.add('show');
+            setTimeout(() => {
+                indicator.classList.remove('show');
+            }, 2000);
+        }
+
+        function resumeDeck() {
+            const savedData = getSavedDeck();
+            if (!savedData) {
+                alert('No saved deck found.');
+                return;
+            }
+
+            cards = savedData.cards;
+            currentIndex = savedData.currentIndex;
+            originalInput = savedData.originalInput;
+            isFlipped = false;
+
+            document.getElementById('cardInput').value = originalInput;
+            showFlashcardSection();
+            updateCard();
+        }
+
+        function getSavedDeck() {
+            try {
+                const data = localStorage.getItem(STORAGE_KEY);
+                if (data) {
+                    return JSON.parse(data);
+                }
+            } catch (e) {
+                console.error('Error reading saved deck:', e);
+            }
+            return null;
+        }
+
+        function clearSavedDeck() {
+            try {
+                localStorage.removeItem(STORAGE_KEY);
+                document.getElementById('resumeSection').style.display = 'none';
+            } catch (e) {
+                console.error('Error clearing saved deck:', e);
+            }
+        }
+
+        function checkForSavedDeck() {
+            const savedData = getSavedDeck();
+            if (savedData && savedData.cards && savedData.cards.length > 0) {
+                const resumeSection = document.getElementById('resumeSection');
+                const resumeInfo = document.getElementById('resumeInfo');
+
+                const savedDate = new Date(savedData.savedAt);
+                const cardCount = savedData.cards.length;
+                const position = savedData.currentIndex + 1;
+
+                resumeInfo.textContent = `${cardCount} cards, position ${position} of ${cardCount}. Saved ${formatDate(savedDate)}.`;
+                resumeSection.style.display = 'block';
+            }
+        }
+
+        function formatDate(date) {
+            const now = new Date();
+            const diff = now - date;
+            const minutes = Math.floor(diff / 60000);
+            const hours = Math.floor(diff / 3600000);
+            const days = Math.floor(diff / 86400000);
+
+            if (minutes < 1) return 'just now';
+            if (minutes < 60) return `${minutes} minute${minutes > 1 ? 's' : ''} ago`;
+            if (hours < 24) return `${hours} hour${hours > 1 ? 's' : ''} ago`;
+            if (days < 7) return `${days} day${days > 1 ? 's' : ''} ago`;
+            return date.toLocaleDateString();
+        }
+
+        // Check for saved deck on page load
+        checkForSavedDeck();
     </script>
 </body>
 </html>
